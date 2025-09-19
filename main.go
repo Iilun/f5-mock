@@ -1,11 +1,13 @@
 package main
 
 import (
+	"F5Mock/internal/handlers"
 	"F5Mock/pkg/cache"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 )
 
 // Example payload structure
@@ -36,14 +38,39 @@ func totoHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hello from /toto, got: %+v\n", payload)
 }
 
+func registerIControlHandler(handler handlers.IControlHandler) {
+	f5Handler := handlers.WrapIControl(handler)
+	registerF5Handler(f5Handler)
+}
+
+func registerF5Handler(handler handlers.F5Handler) {
+	http.Handle(handler.Route(), handler.Handler())
+}
+
 func main() {
-	_, err := cache.New()
+	_, err := cache.New(os.Getenv("F5_SEED_FILE"))
 	if err != nil {
 		log.Fatal(err)
 	}
-	http.HandleFunc("/toto", totoHandler)
-	http.HandleFunc("/tata", tataHandler)
 
-	fmt.Println("Server running on :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	registerF5Handler(handlers.LoginHandler{})
+	registerF5Handler(handlers.AS3Handler{})
+	registerIControlHandler(handlers.ClientSSLListHandler{})
+	registerIControlHandler(handlers.ClientSSLHandler{})
+	registerIControlHandler(handlers.UploadHandler{})
+	registerIControlHandler(handlers.CryptoCertHandler{})
+	registerIControlHandler(handlers.CryptoKeyHandler{})
+	registerIControlHandler(handlers.SSLCertHandler{})
+
+	certFilePath := os.Getenv("F5_CERT_PATH")
+	if certFilePath == "" {
+		certFilePath = "/etc/ssl/f5/cert.pem"
+	}
+
+	keyFilePath := os.Getenv("F5_KEY_PATH")
+	if keyFilePath == "" {
+		keyFilePath = "/etc/ssl/f5/key.pem"
+	}
+
+	log.Fatal(http.ListenAndServeTLS(":4443", certFilePath, keyFilePath, nil))
 }

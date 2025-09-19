@@ -13,12 +13,12 @@ import (
 
 type LoginHandler struct{}
 
-func (h *LoginHandler) Route() string {
-	return "shared/authn/login"
+func (h LoginHandler) Route() string {
+	return "/mgmt/shared/authn/login"
 }
 
-func (h *LoginHandler) Handler() http.HandlerFunc {
-	return jsonPayloadMiddleware(func(w http.ResponseWriter, r *http.Request) {
+func (h LoginHandler) Handler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		expectedLoginProvider := os.Getenv("F5_LOGIN_PROVIDER")
 		// FIXME: check if htis is how it works
 		if expectedLoginProvider == "" {
@@ -68,7 +68,7 @@ func (h *LoginHandler) Handler() http.HandlerFunc {
 			return
 		}
 
-		response := LoginResponse{Token: token.String()}
+		response := LoginResponse{Token: Token{token.String()}}
 
 		jsonBytes, err := json.MarshalIndent(response, "", "  ")
 		if err != nil {
@@ -82,7 +82,7 @@ func (h *LoginHandler) Handler() http.HandlerFunc {
 			return
 		}
 		return
-	})
+	}
 }
 
 func checkAuth(username, password string) error {
@@ -101,11 +101,15 @@ func checkAuth(username, password string) error {
 }
 
 type LoginRequest struct {
-	Username      string `json:"username" validator:"required"`
-	Password      string `json:"password" validator:"required"`
-	LoginProvider string `json:"loginProvider" validator:"required"`
+	Username      string `json:"username" validate:"required"`
+	Password      string `json:"password" validate:"required"`
+	LoginProvider string `json:"loginProvider" validate:"required"`
 }
 
 type LoginResponse struct {
+	Token Token `json:"token"`
+}
+
+type Token struct {
 	Token string `json:"token"`
 }
