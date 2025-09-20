@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/iilun/f5-mock/internal/handlers"
 	"github.com/iilun/f5-mock/internal/log"
 	"github.com/iilun/f5-mock/pkg/cache"
@@ -37,7 +38,14 @@ func main() {
 		keyFilePath = "/etc/ssl/f5/key.pem"
 	}
 
-	err = http.ListenAndServeTLS(":4443", certFilePath, keyFilePath, nil)
+	port := os.Getenv("F5_PORT")
+	if port == "" {
+		port = "443"
+	}
+
+	hostname := os.Getenv("F5_HOST")
+
+	err = http.ListenAndServeTLS(fmt.Sprintf("%s:%s", hostname, port), certFilePath, keyFilePath, nil)
 	if err != nil {
 		logger.Fatal(err.Error())
 	}

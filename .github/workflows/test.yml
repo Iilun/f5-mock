@@ -1,0 +1,52 @@
+name: Go Tests
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+
+      - name: Run Go tests
+        run: |
+          mkdir reports
+          go test -v -json 2>&1 ./... > reports/test.results
+
+      - name: Generate reports
+        if: always()
+        run: |
+          go install github.com/jstemmer/go-junit-report/v2@latest
+          go install github.com/vakenbolt/go-test-report@latest
+          export PATH="$PATH:/usr/local/go/bin"
+          cat reports/test.results | go-junit-report > "reports/tests.xml"
+          cat reports/test.results | go-test-report -o "reports/tests.html" --title "F5 Mock Test Suite"
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: html_report
+          path: reports/tests.html
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Publish Test Report
+        env:
+          NODE_OPTIONS: "--max_old_space_size=4096"
+        if: always()
+        uses: mikepenz/action-junit-report@v4
+        with:
+          report_paths: reports/tests.xml
+          require_tests: true
