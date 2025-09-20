@@ -24,13 +24,13 @@ jobs:
         with:
           go-version: 'stable'
 
-      - name: Setup tests
-        run: mkdir -p reports
+      - name: Run Go tests
+        run: |
+          mkdir -p reports
+          go test -v -json 2>&1 ./... > reports/test.results
 
       - name: Run Go tests
-        run: go test -v -json 2>&1 ./... > reports/test.results
-
-      - name: Run Go tests
+        if: always()
         run: go test -v -json ./...
 
       - name: Generate reports
