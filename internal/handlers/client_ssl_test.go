@@ -122,6 +122,8 @@ func TestClientSSLHandler(t *testing.T) {
 		},
 	}
 
+	_ = os.Unsetenv("F5_LOGIN_PROVIDER")
+
 	_, _ = cache.New("")
 
 	logger := log.New(true)

@@ -55,3 +55,4 @@ jobs:
         with:
           report_paths: reports/tests.xml
           require_tests: true
+          check_name: 'Test summary'
