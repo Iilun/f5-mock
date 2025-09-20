@@ -15,15 +15,15 @@ func (h SSLCertHandler) Route() string {
 	return "/mgmt/tm/sys/file/ssl-cert/{path}"
 }
 
-func (h SSLCertHandler) Handler() IControlHandlerFunc {
-	return authenticatedIControlRequestMiddleware(
-		func(w http.ResponseWriter, r *http.Request, version int) {
+func (h SSLCertHandler) Handler() http.HandlerFunc {
+	return authenticatedRequestMiddleware(
+		func(w http.ResponseWriter, r *http.Request) {
 			switch r.Method {
 			case http.MethodGet:
 				partition, certFile, err := parsePath(r.PathValue("path"))
 
 				if err != nil {
-					f5Error(w, http.StatusBadRequest, err.Error())
+					f5Error(w, r, http.StatusBadRequest, err.Error())
 					return
 				}
 
@@ -33,9 +33,9 @@ func (h SSLCertHandler) Handler() IControlHandlerFunc {
 
 				if err != nil {
 					if errors.Is(err, fs.ErrNotExist) {
-						f5Error(w, http.StatusNotFound, err.Error())
+						f5Error(w, r, http.StatusNotFound, err.Error())
 					} else {
-						f5Error(w, http.StatusBadRequest, err.Error())
+						f5Error(w, r, http.StatusBadRequest, err.Error())
 					}
 					return
 				}
@@ -44,13 +44,13 @@ func (h SSLCertHandler) Handler() IControlHandlerFunc {
 
 				respBytes, err := json.Marshal(resp)
 				if err != nil {
-					f5Error(w, http.StatusInternalServerError, err.Error())
+					f5Error(w, r, http.StatusInternalServerError, err.Error())
 					return
 				}
 
 				_, err = w.Write(respBytes)
 				if err != nil {
-					f5Error(w, http.StatusInternalServerError, err.Error())
+					f5Error(w, r, http.StatusInternalServerError, err.Error())
 					return
 				}
 				return

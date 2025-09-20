@@ -1,9 +1,7 @@
 package cache
 
 import (
-	"fmt"
 	"io/fs"
-	"log"
 	"path/filepath"
 )
 
@@ -29,7 +27,6 @@ func (f *MemoryFS) ReadFile(path string) ([]byte, error) {
 }
 
 func (f *MemoryFS) WriteFile(path string, content []byte) (int, error) {
-	log.Println(fmt.Sprintf("Writing file %s", path))
 	bytes := f.files[filepath.Clean(path)]
 	if bytes != nil {
 		return 0, fs.ErrExist

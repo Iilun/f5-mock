@@ -1,66 +1,32 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
 	"github.com/iilun/f5-mock/internal/handlers"
+	"github.com/iilun/f5-mock/internal/log"
 	"github.com/iilun/f5-mock/pkg/cache"
-	"log"
 	"net/http"
 	"os"
 )
 
-// Example payload structure
-type Payload struct {
-	Message string `json:"message"`
-	Number  int    `json:"number"`
-}
-
-func decodeBody(r *http.Request) (*Payload, error) {
-	defer r.Body.Close()
-	var p Payload
-	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
-		return nil, err
-	}
-	return &p, nil
-}
-
-func totoHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "only POST allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	payload, err := decodeBody(r)
-	if err != nil {
-		http.Error(w, "invalid JSON body", http.StatusBadRequest)
-		return
-	}
-	fmt.Fprintf(w, "Hello from /toto, got: %+v\n", payload)
-}
-
-func registerIControlHandler(handler handlers.IControlHandler) {
-	f5Handler := handlers.WrapIControl(handler)
-	registerF5Handler(f5Handler)
-}
-
-func registerF5Handler(handler handlers.F5Handler) {
-	http.Handle(handler.Route(), handler.Handler())
-}
-
 func main() {
+
+	logger := log.New(os.Getenv("F5_DEBUG") != "")
+	defer logger.Close()
+	log.Default = logger
+
 	_, err := cache.New(os.Getenv("F5_SEED_FILE"))
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err.Error())
 	}
 
-	registerF5Handler(handlers.LoginHandler{})
-	registerF5Handler(handlers.AS3Handler{})
-	registerIControlHandler(handlers.ClientSSLListHandler{})
-	registerIControlHandler(handlers.ClientSSLHandler{})
-	registerIControlHandler(handlers.UploadHandler{})
-	registerIControlHandler(handlers.CryptoCertHandler{})
-	registerIControlHandler(handlers.CryptoKeyHandler{})
-	registerIControlHandler(handlers.SSLCertHandler{})
+	handlers.RegisterHandler(handlers.LoginHandler{}, logger)
+	handlers.RegisterHandler(handlers.AS3Handler{}, logger)
+	handlers.RegisterHandler(handlers.ClientSSLListHandler{}, logger)
+	handlers.RegisterHandler(handlers.ClientSSLHandler{}, logger)
+	handlers.RegisterHandler(handlers.UploadHandler{}, logger)
+	handlers.RegisterHandler(handlers.CryptoCertHandler{}, logger)
+	handlers.RegisterHandler(handlers.CryptoKeyHandler{}, logger)
+	handlers.RegisterHandler(handlers.SSLCertHandler{}, logger)
 
 	certFilePath := os.Getenv("F5_CERT_PATH")
 	if certFilePath == "" {
@@ -72,5 +38,8 @@ func main() {
 		keyFilePath = "/etc/ssl/f5/key.pem"
 	}
 
-	log.Fatal(http.ListenAndServeTLS(":4443", certFilePath, keyFilePath, nil))
+	err = http.ListenAndServeTLS(":4443", certFilePath, keyFilePath, nil)
+	if err != nil {
+		logger.Fatal(err.Error())
+	}
 }

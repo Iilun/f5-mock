@@ -23,21 +23,21 @@ func (h LoginHandler) Handler() http.HandlerFunc {
 		// FIXME: check if htis is how it works
 		if expectedLoginProvider == "" {
 			// This endpoint is disabled if external auth not enabled
-			f5Error(w, http.StatusForbidden, "login not available")
+			f5Error(w, r, http.StatusForbidden, "login not available")
 			return
 		}
 
 		// Read body
 		bytes, err := io.ReadAll(r.Body)
 		if err != nil {
-			f5Error(w, http.StatusInternalServerError, "could not read body")
+			f5Error(w, r, http.StatusInternalServerError, "could not read body")
 			return
 		}
 
 		var request LoginRequest
 		err = json.Unmarshal(bytes, &request)
 		if err != nil {
-			f5Error(w, http.StatusBadRequest, "invalid JSON body")
+			f5Error(w, r, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
 
@@ -45,18 +45,18 @@ func (h LoginHandler) Handler() http.HandlerFunc {
 
 		err = validate.Struct(request)
 		if err != nil {
-			f5Error(w, http.StatusBadRequest, "invalid request")
+			f5Error(w, r, http.StatusBadRequest, "invalid request")
 			return
 		}
 
 		err = checkAuth(request.Username, request.Password)
 		if err != nil {
-			f5Error(w, http.StatusBadRequest, err.Error())
+			f5Error(w, r, http.StatusBadRequest, err.Error())
 			return
 		}
 
 		if request.LoginProvider != expectedLoginProvider {
-			f5Error(w, http.StatusBadRequest, "unknown login provider")
+			f5Error(w, r, http.StatusBadRequest, "unknown login provider")
 			return
 		}
 
@@ -64,7 +64,7 @@ func (h LoginHandler) Handler() http.HandlerFunc {
 		token := uuid.New()
 		err = cache.GlobalCache.AuthTokens.Set(token.String(), nil)
 		if err != nil {
-			f5Error(w, http.StatusInternalServerError, "could not set cache entry")
+			f5Error(w, r, http.StatusInternalServerError, "could not set cache entry")
 			return
 		}
 
@@ -72,13 +72,13 @@ func (h LoginHandler) Handler() http.HandlerFunc {
 
 		jsonBytes, err := json.MarshalIndent(response, "", "  ")
 		if err != nil {
-			f5Error(w, http.StatusInternalServerError, "could not marshal json")
+			f5Error(w, r, http.StatusInternalServerError, "could not marshal json")
 			return
 		}
 
 		_, err = w.Write(jsonBytes)
 		if err != nil {
-			f5Error(w, http.StatusInternalServerError, "could not marshal json")
+			f5Error(w, r, http.StatusInternalServerError, "could not marshal json")
 			return
 		}
 		return

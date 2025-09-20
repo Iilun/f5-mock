@@ -1,29 +1,32 @@
 package handlers
 
 import (
+	"github.com/iilun/f5-mock/internal/log"
 	"net/http"
 )
 
-type IControlHandlerFunc func(w http.ResponseWriter, r *http.Request, version int)
-
+// F5Handler is the interface to implement for all handlers
 type F5Handler interface {
 	Route() string
 	Handler() http.HandlerFunc
 }
 
-type IControlHandler interface {
-	Route() string
-	Handler() IControlHandlerFunc
+type F5HandlerWrapper struct {
+	wrapped F5Handler
+	logger  log.Logger
 }
 
-type iControlHandlerWrapper struct {
-	IControlHandler
+func (w F5HandlerWrapper) Route() string {
+	return w.wrapped.Route()
 }
 
-func (i iControlHandlerWrapper) Handler() http.HandlerFunc {
-	return iControlMiddleWare(i.IControlHandler.Handler())
+func (w F5HandlerWrapper) Handler() http.HandlerFunc {
+	return loggingMiddleware(w.logger, applyVersionMiddleware(w.wrapped.Handler()))
 }
 
-func WrapIControl(i IControlHandler) F5Handler {
-	return iControlHandlerWrapper{i}
+func RegisterHandler(h F5Handler, log log.Logger) {
+	// Wrap to apply all base middlewares
+	wrapped := F5HandlerWrapper{h, log}
+
+	http.HandleFunc(wrapped.Route(), wrapped.Handler())
 }

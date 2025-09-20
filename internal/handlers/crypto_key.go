@@ -15,21 +15,21 @@ func (h CryptoKeyHandler) Route() string {
 	return "/mgmt/tm/sys/crypto/key"
 }
 
-func (h CryptoKeyHandler) Handler() IControlHandlerFunc {
-	return authenticatedIControlRequestMiddleware(
-		func(w http.ResponseWriter, r *http.Request, version int) {
+func (h CryptoKeyHandler) Handler() http.HandlerFunc {
+	return authenticatedRequestMiddleware(
+		func(w http.ResponseWriter, r *http.Request) {
 
 			// Read body
 			bytes, err := io.ReadAll(r.Body)
 			if err != nil {
-				f5Error(w, http.StatusInternalServerError, "could not read body")
+				f5Error(w, r, http.StatusInternalServerError, "could not read body")
 				return
 			}
 
 			var request CryptoCommandRequest
 			err = json.Unmarshal(bytes, &request)
 			if err != nil {
-				f5Error(w, http.StatusBadRequest, "invalid JSON body")
+				f5Error(w, r, http.StatusBadRequest, "invalid JSON body")
 				return
 			}
 
@@ -37,36 +37,36 @@ func (h CryptoKeyHandler) Handler() IControlHandlerFunc {
 
 			err = validate.Struct(request)
 			if err != nil {
-				f5Error(w, http.StatusBadRequest, "invalid request")
+				f5Error(w, r, http.StatusBadRequest, "invalid request")
 				return
 			}
 
 			if request.Command != "install" {
-				f5Error(w, http.StatusBadRequest, "unsupported command")
+				f5Error(w, r, http.StatusBadRequest, "unsupported command")
 				return
 			}
 
 			if cache.GlobalCache.Fs.Exists(request.Name) {
-				f5Error(w, http.StatusBadRequest, "dest path already exists")
+				f5Error(w, r, http.StatusBadRequest, "dest path already exists")
 				return
 			}
 
 			// Get previous file
 			contents, err := cache.GlobalCache.Fs.ReadFile(request.FromLocalFile)
 			if err != nil {
-				f5Error(w, http.StatusBadRequest, "could not read local file")
+				f5Error(w, r, http.StatusBadRequest, "could not read local file")
 				return
 			}
 
 			// Check that content is a valid certificate
 			if !crypto.IsValidPem(contents) {
-				f5Error(w, http.StatusBadRequest, "invalid pem file")
+				f5Error(w, r, http.StatusBadRequest, "invalid pem file")
 				return
 			}
 
 			_, err = cache.GlobalCache.Fs.WriteFile(request.Name, contents)
 			if err != nil {
-				f5Error(w, http.StatusInternalServerError, "could not write key file")
+				f5Error(w, r, http.StatusInternalServerError, "could not write key file")
 				return
 			}
 			return

@@ -4,13 +4,12 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/go-playground/validator/v10"
 	"github.com/iilun/f5-mock/internal/crypto"
+	"github.com/iilun/f5-mock/internal/log"
 	"github.com/iilun/f5-mock/pkg/cache"
 	"github.com/iilun/f5-mock/pkg/models"
 	"io"
-	"log"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -22,8 +21,8 @@ func (h ClientSSLListHandler) Route() string {
 	return "/mgmt/tm/ltm/profile/client-ssl"
 }
 
-func (h ClientSSLListHandler) Handler() IControlHandlerFunc {
-	return authenticatedIControlRequestMiddleware(func(w http.ResponseWriter, r *http.Request, version int) {
+func (h ClientSSLListHandler) Handler() http.HandlerFunc {
+	return authenticatedRequestMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
 			// Parse request params
@@ -37,7 +36,7 @@ func (h ClientSSLListHandler) Handler() IControlHandlerFunc {
 			if filter != "" {
 				partition, found = strings.CutPrefix(filter, "partition eq ")
 				if !found {
-					f5Error(w, http.StatusBadRequest, "unsupported $filter")
+					f5Error(w, r, http.StatusBadRequest, "unsupported $filter")
 					return
 				}
 			}
@@ -48,7 +47,7 @@ func (h ClientSSLListHandler) Handler() IControlHandlerFunc {
 				if partition == "" || profile.Partition == partition {
 					filteredProfile, err := filterFields(*profile, fieldSelect)
 					if err != nil {
-						f5Error(w, http.StatusInternalServerError, "error while filtering")
+						f5Error(w, r, http.StatusInternalServerError, "error while filtering")
 						return
 					}
 					filteredItems = append(filteredItems, filteredProfile)
@@ -59,31 +58,31 @@ func (h ClientSSLListHandler) Handler() IControlHandlerFunc {
 
 			respBytes, err := json.Marshal(response)
 			if err != nil {
-				f5Error(w, http.StatusInternalServerError, "could not marshal response")
+				f5Error(w, r, http.StatusInternalServerError, "could not marshal response")
 				return
 			}
 
 			_, err = w.Write(respBytes)
 			if err != nil {
-				f5Error(w, http.StatusInternalServerError, "could not write response")
+				f5Error(w, r, http.StatusInternalServerError, "could not write response")
 				return
 			}
 			break
 		case http.MethodPost:
 			if r.Header.Get("Content-Type") != "application/json" {
-				f5Error(w, http.StatusUnsupportedMediaType, "Content-Type must be application/json")
+				f5Error(w, r, http.StatusUnsupportedMediaType, "Content-Type must be application/json")
 				return
 			}
 
 			bodyBytes, err := io.ReadAll(r.Body)
 			if err != nil {
-				f5Error(w, http.StatusInternalServerError, "could not read request")
+				f5Error(w, r, http.StatusInternalServerError, "could not read request")
 				return
 			}
 			var newProfile models.ClientSSLProfile
 			err = json.Unmarshal(bodyBytes, &newProfile)
 			if err != nil {
-				f5Error(w, http.StatusBadRequest, "invalid post request")
+				f5Error(w, r, http.StatusBadRequest, "invalid post request")
 				return
 			}
 
@@ -91,41 +90,49 @@ func (h ClientSSLListHandler) Handler() IControlHandlerFunc {
 
 			err = validate.Struct(newProfile)
 			if err != nil {
-				f5Error(w, http.StatusBadRequest, "invalid request")
+				f5Error(w, r, http.StatusBadRequest, "invalid request")
+				return
+			}
+
+			version, ok := r.Context().Value(log.ContextVersion).(int)
+			if !ok {
+				f5Error(w, r, http.StatusBadRequest, "invalid version")
 				return
 			}
 
 			err = validateCert(newProfile.Cert, version)
 			if err != nil {
-				f5Error(w, http.StatusBadRequest, "invalid cert: %s", err.Error())
+				f5Error(w, r, http.StatusBadRequest, "invalid cert: %s", err.Error())
 				return
 			}
 
 			foundProfile := findProfile(newProfile.Partition, newProfile.Name)
 			if foundProfile != nil {
-				f5Error(w, http.StatusBadRequest, "profile already exists")
+				f5Error(w, r, http.StatusBadRequest, "profile already exists")
 				return
 			}
 
-			log.Println(fmt.Sprintf("DEBUG: Added %s profile", newProfile.Name))
+			logger := loggerFromRequest(r)
+
+			logger.Debug("Added %s profile", newProfile.Name)
 
 			cache.GlobalCache.ClientSSLProfiles = append(cache.GlobalCache.ClientSSLProfiles, &newProfile)
 
 			respBytes, err := json.Marshal(newProfile)
 			if err != nil {
-				f5Error(w, http.StatusInternalServerError, "could not marshal response")
+				f5Error(w, r, http.StatusInternalServerError, "could not marshal response")
 				return
 			}
 
 			_, err = w.Write(respBytes)
 			if err != nil {
-				f5Error(w, http.StatusInternalServerError, "could not write response")
+				f5Error(w, r, http.StatusInternalServerError, "could not write response")
 				return
 			}
 
 			break
 		default:
-			f5Error(w, http.StatusNotFound, "invalid method")
+			f5Error(w, r, http.StatusNotFound, "invalid method")
 			return
 		}
 	})
@@ -165,19 +172,19 @@ func (h ClientSSLHandler) Route() string {
 	return "/mgmt/tm/ltm/profile/client-ssl/{profile}"
 }
 
-func (h ClientSSLHandler) Handler() IControlHandlerFunc {
-	return authenticatedIControlRequestMiddleware(func(w http.ResponseWriter, r *http.Request, version int) {
+func (h ClientSSLHandler) Handler() http.HandlerFunc {
+	return authenticatedRequestMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		partition, profileName, err := parsePath(r.PathValue("profile"))
 
 		if err != nil {
-			f5Error(w, http.StatusBadRequest, err.Error())
+			f5Error(w, r, http.StatusBadRequest, err.Error())
 			return
 		}
 
 		foundProfile := findProfile(partition, profileName)
 
 		if foundProfile == nil {
-			f5Error(w, http.StatusNotFound, "could not find profile")
+			f5Error(w, r, http.StatusNotFound, "could not find profile")
 			return
 		}
 
@@ -185,37 +192,37 @@ func (h ClientSSLHandler) Handler() IControlHandlerFunc {
 		case http.MethodGet:
 			asMap, err := filterFields(*foundProfile, r.URL.Query().Get("$select"))
 			if err != nil {
-				f5Error(w, http.StatusInternalServerError, "could not select field")
+				f5Error(w, r, http.StatusInternalServerError, "could not select field")
 				return
 			}
 
 			respBytes, err := json.Marshal(asMap)
 			if err != nil {
-				f5Error(w, http.StatusInternalServerError, "could not marshal")
+				f5Error(w, r, http.StatusInternalServerError, "could not marshal")
 				return
 			}
 
 			_, err = w.Write(respBytes)
 			if err != nil {
-				f5Error(w, http.StatusInternalServerError, "could not write response")
+				f5Error(w, r, http.StatusInternalServerError, "could not write response")
 				return
 			}
 			break
 		case http.MethodPatch:
 			if r.Header.Get("Content-Type") != "application/json" {
-				f5Error(w, http.StatusUnsupportedMediaType, "Content-Type must be application/json")
+				f5Error(w, r, http.StatusUnsupportedMediaType, "Content-Type must be application/json")
 				return
 			}
 
 			bodyBytes, err := io.ReadAll(r.Body)
 			if err != nil {
-				f5Error(w, http.StatusInternalServerError, "could not read request")
+				f5Error(w, r, http.StatusInternalServerError, "could not read request")
 				return
 			}
 			var patchRequest PatchClientSSLProfile
 			err = json.Unmarshal(bodyBytes, &patchRequest)
 			if err != nil {
-				f5Error(w, http.StatusBadRequest, "invalid patch request")
+				f5Error(w, r, http.StatusBadRequest, "invalid patch request")
 				return
 			}
 
@@ -223,13 +230,19 @@ func (h ClientSSLHandler) Handler() IControlHandlerFunc {
 
 			err = validate.Struct(patchRequest)
 			if err != nil {
-				f5Error(w, http.StatusBadRequest, "invalid request")
+				f5Error(w, r, http.StatusBadRequest, "invalid request")
+				return
+			}
+
+			version, ok := r.Context().Value(log.ContextVersion).(int)
+			if !ok {
+				f5Error(w, r, http.StatusBadRequest, "invalid version")
 				return
 			}
 
 			err = validateCert(patchRequest.Cert, version)
 			if err != nil {
-				f5Error(w, http.StatusBadRequest, "invalid cert: %s", err.Error())
+				f5Error(w, r, http.StatusBadRequest, "invalid cert: %s", err.Error())
 				return
 			}
 
@@ -243,18 +256,18 @@ func (h ClientSSLHandler) Handler() IControlHandlerFunc {
 
 			respBytes, err := json.Marshal(*foundProfile)
 			if err != nil {
-				f5Error(w, http.StatusInternalServerError, "could not marshal response")
+				f5Error(w, r, http.StatusInternalServerError, "could not marshal response")
 				return
 			}
 
 			_, err = w.Write(respBytes)
 			if err != nil {
-				f5Error(w, http.StatusInternalServerError, "could not write response")
+				f5Error(w, r, http.StatusInternalServerError, "could not write response")
 				return
 			}
 			break
 		default:
-			f5Error(w, http.StatusNotFound, "invalid method")
+			f5Error(w, r, http.StatusNotFound, "invalid method")
 			return
 		}
 
