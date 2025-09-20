@@ -1,9 +1,5 @@
 version: 2
 project_name: f5-mock
-release:
-  github:
-    owner: iilun
-    name: f5-mock
 
 builds:
   - id: f5-mock-binary
