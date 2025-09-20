@@ -3,9 +3,9 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
-	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/iilun/f5-mock/pkg/cache"
+	"github.com/iilun/f5-mock/pkg/f5Validator"
 	"io"
 	"net/http"
 	"os"
@@ -41,9 +41,7 @@ func (h LoginHandler) Handler() http.HandlerFunc {
 			return
 		}
 
-		validate := validator.New(validator.WithRequiredStructEnabled())
-
-		err = validate.Struct(request)
+		err = f5Validator.Validate.Struct(request)
 		if err != nil {
 			f5Error(w, r, http.StatusBadRequest, "invalid request")
 			return
@@ -51,7 +49,7 @@ func (h LoginHandler) Handler() http.HandlerFunc {
 
 		err = checkAuth(request.Username, request.Password)
 		if err != nil {
-			f5Error(w, r, http.StatusBadRequest, err.Error())
+			f5Error(w, r, http.StatusBadRequest, "%v", err)
 			return
 		}
 

@@ -2,11 +2,12 @@ package handlers
 
 import (
 	"encoding/json"
-	"github.com/go-playground/validator/v10"
 	"github.com/iilun/f5-mock/internal/crypto"
 	"github.com/iilun/f5-mock/pkg/cache"
+	"github.com/iilun/f5-mock/pkg/f5Validator"
 	"io"
 	"net/http"
+	"path"
 )
 
 type CryptoKeyHandler struct{}
@@ -33,9 +34,7 @@ func (h CryptoKeyHandler) Handler() http.HandlerFunc {
 				return
 			}
 
-			validate := validator.New(validator.WithRequiredStructEnabled())
-
-			err = validate.Struct(request)
+			err = f5Validator.Validate.Struct(request)
 			if err != nil {
 				f5Error(w, r, http.StatusBadRequest, "invalid request")
 				return
@@ -46,7 +45,9 @@ func (h CryptoKeyHandler) Handler() http.HandlerFunc {
 				return
 			}
 
-			if cache.GlobalCache.Fs.Exists(request.Name) {
+			destPath := path.Join("/keys", request.Name)
+
+			if cache.GlobalCache.Fs.Exists(destPath) {
 				f5Error(w, r, http.StatusBadRequest, "dest path already exists")
 				return
 			}
@@ -64,7 +65,10 @@ func (h CryptoKeyHandler) Handler() http.HandlerFunc {
 				return
 			}
 
-			_, err = cache.GlobalCache.Fs.WriteFile(request.Name, contents)
+			logger := loggerFromRequest(r)
+			logger.Debug("Writing key to %s", destPath)
+
+			_, err = cache.GlobalCache.Fs.WriteFile(destPath, contents)
 			if err != nil {
 				f5Error(w, r, http.StatusInternalServerError, "could not write key file")
 				return

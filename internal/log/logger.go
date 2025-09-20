@@ -3,6 +3,7 @@ package log
 import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"sync"
 )
 
 const (
@@ -17,18 +18,6 @@ type Logger interface {
 	Fatal(message string, args ...any)
 	With(args ...any) Logger
 	Close()
-}
-
-var Default Logger
-
-func New(debug bool) Logger {
-	cfg := zap.NewProductionConfig()
-	if debug {
-		cfg.Level = zap.NewAtomicLevelAt(zapcore.DebugLevel)
-	}
-
-	logger, _ := cfg.Build()
-	return loggerImpl{logger.Sugar()}
 }
 
 type loggerImpl struct {
@@ -57,4 +46,23 @@ func (l loggerImpl) With(args ...any) Logger {
 
 func (l loggerImpl) Close() {
 	_ = l.internal.Sync()
+}
+
+var once sync.Once
+
+var Default Logger
+
+func New(debug bool) Logger {
+	once.Do(func() {
+		cfg := zap.NewProductionConfig()
+		if debug {
+			cfg.Level = zap.NewAtomicLevelAt(zapcore.DebugLevel)
+		}
+
+		logger, _ := cfg.Build()
+
+		Default = loggerImpl{logger.Sugar()}
+	})
+
+	return Default
 }

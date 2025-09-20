@@ -23,7 +23,7 @@ func (h UploadHandler) Handler() http.HandlerFunc {
 
 			err := checkContentType(r, "application/octet-stream")
 			if err != nil {
-				f5Error(w, r, http.StatusUnsupportedMediaType, err.Error())
+				f5Error(w, r, http.StatusUnsupportedMediaType, "%v", err)
 				return
 			}
 

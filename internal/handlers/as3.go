@@ -48,13 +48,13 @@ func (h AS3Handler) Handler() http.HandlerFunc {
 
 			respBytes, err := json.Marshal(response)
 			if err != nil {
-				f5Error(w, r, http.StatusInternalServerError, err.Error())
+				f5Error(w, r, http.StatusInternalServerError, "%v", err)
 				return
 			}
 
 			_, err = w.Write(respBytes)
 			if err != nil {
-				f5Error(w, r, http.StatusInternalServerError, err.Error())
+				f5Error(w, r, http.StatusInternalServerError, "%v", err)
 				return
 			}
 			return

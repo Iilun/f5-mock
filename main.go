@@ -12,7 +12,6 @@ func main() {
 
 	logger := log.New(os.Getenv("F5_DEBUG") != "")
 	defer logger.Close()
-	log.Default = logger
 
 	_, err := cache.New(os.Getenv("F5_SEED_FILE"))
 	if err != nil {

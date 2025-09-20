@@ -23,19 +23,19 @@ func (h SSLCertHandler) Handler() http.HandlerFunc {
 				partition, certFile, err := parsePath(r.PathValue("path"))
 
 				if err != nil {
-					f5Error(w, r, http.StatusBadRequest, err.Error())
+					f5Error(w, r, http.StatusBadRequest, "%v", err)
 					return
 				}
 
-				destPath := path.Join("certs", partition, certFile)
+				destPath := path.Join("/certs", partition, certFile)
 
 				contents, err := cache.GlobalCache.Fs.ReadFile(destPath)
 
 				if err != nil {
 					if errors.Is(err, fs.ErrNotExist) {
-						f5Error(w, r, http.StatusNotFound, err.Error())
+						f5Error(w, r, http.StatusNotFound, "%v", err)
 					} else {
-						f5Error(w, r, http.StatusBadRequest, err.Error())
+						f5Error(w, r, http.StatusBadRequest, "%v", err)
 					}
 					return
 				}
@@ -44,13 +44,13 @@ func (h SSLCertHandler) Handler() http.HandlerFunc {
 
 				respBytes, err := json.Marshal(resp)
 				if err != nil {
-					f5Error(w, r, http.StatusInternalServerError, err.Error())
+					f5Error(w, r, http.StatusInternalServerError, "%v", err)
 					return
 				}
 
 				_, err = w.Write(respBytes)
 				if err != nil {
-					f5Error(w, r, http.StatusInternalServerError, err.Error())
+					f5Error(w, r, http.StatusInternalServerError, "%v", err)
 					return
 				}
 				return

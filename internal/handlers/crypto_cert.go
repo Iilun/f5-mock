@@ -2,9 +2,9 @@ package handlers
 
 import (
 	"encoding/json"
-	"github.com/go-playground/validator/v10"
 	"github.com/iilun/f5-mock/internal/crypto"
 	"github.com/iilun/f5-mock/pkg/cache"
+	"github.com/iilun/f5-mock/pkg/f5Validator"
 	"io"
 	"net/http"
 	"path"
@@ -34,9 +34,7 @@ func (h CryptoCertHandler) Handler() http.HandlerFunc {
 				return
 			}
 
-			validate := validator.New(validator.WithRequiredStructEnabled())
-
-			err = validate.Struct(request)
+			err = f5Validator.Validate.Struct(request)
 			if err != nil {
 				f5Error(w, r, http.StatusBadRequest, "invalid request")
 				return
@@ -47,7 +45,7 @@ func (h CryptoCertHandler) Handler() http.HandlerFunc {
 				return
 			}
 
-			destPath := path.Join("certs", request.Name)
+			destPath := path.Join("/certs", request.Name)
 
 			if cache.GlobalCache.Fs.Exists(destPath) {
 				f5Error(w, r, http.StatusBadRequest, "dest path already exists")
@@ -77,9 +75,8 @@ func (h CryptoCertHandler) Handler() http.HandlerFunc {
 }
 
 type CryptoCommandRequest struct {
-	Command string `json:"command" validate:"required"`
-	Name    string `json:"name" validate:"required"`
-	// FIXME: custom validator
-	FromLocalFile string `json:"from-local-file" validate:"required"`
+	Command       string `json:"command" validate:"required"`
+	Name          string `json:"name" validate:"required"`
+	FromLocalFile string `json:"from-local-file" validate:"required,existingfile"`
 	SecurityType  string `json:"securityType"`
 }

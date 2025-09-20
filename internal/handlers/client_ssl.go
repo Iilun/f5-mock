@@ -4,10 +4,10 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"errors"
-	"github.com/go-playground/validator/v10"
 	"github.com/iilun/f5-mock/internal/crypto"
 	"github.com/iilun/f5-mock/internal/log"
 	"github.com/iilun/f5-mock/pkg/cache"
+	"github.com/iilun/f5-mock/pkg/f5Validator"
 	"github.com/iilun/f5-mock/pkg/models"
 	"io"
 	"net/http"
@@ -86,9 +86,7 @@ func (h ClientSSLListHandler) Handler() http.HandlerFunc {
 				return
 			}
 
-			validate := validator.New(validator.WithRequiredStructEnabled())
-
-			err = validate.Struct(newProfile)
+			err = f5Validator.Validate.Struct(newProfile)
 			if err != nil {
 				f5Error(w, r, http.StatusBadRequest, "invalid request")
 				return
@@ -96,7 +94,7 @@ func (h ClientSSLListHandler) Handler() http.HandlerFunc {
 
 			version, ok := r.Context().Value(log.ContextVersion).(int)
 			if !ok {
-				f5Error(w, r, http.StatusBadRequest, "invalid version")
+				f5Error(w, r, http.StatusInternalServerError, "invalid version")
 				return
 			}
 
@@ -177,14 +175,14 @@ func (h ClientSSLHandler) Handler() http.HandlerFunc {
 		partition, profileName, err := parsePath(r.PathValue("profile"))
 
 		if err != nil {
-			f5Error(w, r, http.StatusBadRequest, err.Error())
+			f5Error(w, r, http.StatusBadRequest, "%v", err)
 			return
 		}
 
 		foundProfile := findProfile(partition, profileName)
 
 		if foundProfile == nil {
-			f5Error(w, r, http.StatusNotFound, "could not find profile")
+			f5Error(w, r, http.StatusNotFound, "could not find profile %s for partition %s", profileName, partition)
 			return
 		}
 
@@ -192,7 +190,7 @@ func (h ClientSSLHandler) Handler() http.HandlerFunc {
 		case http.MethodGet:
 			asMap, err := filterFields(*foundProfile, r.URL.Query().Get("$select"))
 			if err != nil {
-				f5Error(w, r, http.StatusInternalServerError, "could not select field")
+				f5Error(w, r, http.StatusInternalServerError, "could not select field: %v", err)
 				return
 			}
 
@@ -209,8 +207,8 @@ func (h ClientSSLHandler) Handler() http.HandlerFunc {
 			}
 			break
 		case http.MethodPatch:
-			if r.Header.Get("Content-Type") != "application/json" {
-				f5Error(w, r, http.StatusUnsupportedMediaType, "Content-Type must be application/json")
+			if err = checkContentType(r, "application/json"); err != nil {
+				f5Error(w, r, http.StatusUnsupportedMediaType, "%v", err)
 				return
 			}
 
@@ -219,29 +217,27 @@ func (h ClientSSLHandler) Handler() http.HandlerFunc {
 				f5Error(w, r, http.StatusInternalServerError, "could not read request")
 				return
 			}
+
 			var patchRequest PatchClientSSLProfile
+
 			err = json.Unmarshal(bodyBytes, &patchRequest)
 			if err != nil {
 				f5Error(w, r, http.StatusBadRequest, "invalid patch request")
 				return
 			}
 
-			validate := validator.New(validator.WithRequiredStructEnabled())
-
-			err = validate.Struct(patchRequest)
-			if err != nil {
-				f5Error(w, r, http.StatusBadRequest, "invalid request")
+			if err = f5Validator.Validate.Struct(patchRequest); err != nil {
+				f5Error(w, r, http.StatusBadRequest, "invalid request: %v", err)
 				return
 			}
 
 			version, ok := r.Context().Value(log.ContextVersion).(int)
 			if !ok {
-				f5Error(w, r, http.StatusBadRequest, "invalid version")
+				f5Error(w, r, http.StatusInternalServerError, "invalid version")
 				return
 			}
 
-			err = validateCert(patchRequest.Cert, version)
-			if err != nil {
+			if err = validateCert(patchRequest.Cert, version); err != nil {
 				f5Error(w, r, http.StatusBadRequest, "invalid cert: %s", err.Error())
 				return
 			}
@@ -267,17 +263,16 @@ func (h ClientSSLHandler) Handler() http.HandlerFunc {
 			}
 			break
 		default:
-			f5Error(w, r, http.StatusNotFound, "invalid method")
+			f5Error(w, r, http.StatusMethodNotAllowed, "invalid method")
 			return
 		}
-
 	})
 }
 
 type PatchClientSSLProfile struct {
-	DefaultsFrom string `json:"defaultsFrom" validate:"required"`
-	Cert         string `json:"cert"`
-	Key          string `json:"key"`
+	DefaultsFrom string `json:"defaultsFrom"`
+	Cert         string `json:"cert" validate:"existingcertfile"`
+	Key          string `json:"key" validate:"existingkeyfile"`
 }
 
 func findProfile(partition, name string) *models.ClientSSLProfile {
@@ -295,7 +290,7 @@ func validateCert(path string, version int) error {
 		return nil
 	}
 	// Check ECDSA certs not supported
-	certBytes, err := cache.GlobalCache.Fs.ReadFile(filepath.Join("certs", path))
+	certBytes, err := cache.GlobalCache.Fs.ReadFile(filepath.Join("/certs", path))
 	if err != nil {
 		return err
 	}
