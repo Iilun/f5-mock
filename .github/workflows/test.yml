@@ -37,6 +37,15 @@ jobs:
           export PATH="$PATH:/usr/local/go/bin"
           cat reports/test.results | go-junit-report > "reports/tests.xml"
           cat reports/test.results | go-test-report -o "reports/tests.html" --title "F5 Mock Test Suite"
+          
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: json_results
+          path: reports/tests.results
+          if-no-files-found: error
 
       - name: Upload reports
         if: always()
