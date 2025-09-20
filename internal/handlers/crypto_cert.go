@@ -1,10 +1,10 @@
 package handlers
 
 import (
-	"F5Mock/internal/crypto"
-	"F5Mock/pkg/cache"
 	"encoding/json"
 	"github.com/go-playground/validator/v10"
+	"github.com/iilun/f5-mock/internal/crypto"
+	"github.com/iilun/f5-mock/pkg/cache"
 	"io"
 	"net/http"
 	"path"

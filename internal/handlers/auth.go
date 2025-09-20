@@ -1,11 +1,11 @@
 package handlers
 
 import (
-	"F5Mock/pkg/cache"
 	"encoding/json"
 	"errors"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
+	"github.com/iilun/f5-mock/pkg/cache"
 	"io"
 	"net/http"
 	"os"

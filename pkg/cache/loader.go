@@ -1,8 +1,8 @@
 package cache
 
 import (
-	"F5Mock/pkg/models"
 	"fmt"
+	"github.com/iilun/f5-mock/pkg/models"
 	"gopkg.in/yaml.v3"
 	"os"
 )

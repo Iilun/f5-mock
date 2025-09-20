@@ -1,10 +1,10 @@
 package handlers
 
 import (
-	"F5Mock/pkg/cache"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/iilun/f5-mock/pkg/cache"
 	"log"
 	"net/http"
 	"os"

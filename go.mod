@@ -1,4 +1,4 @@
-module F5Mock
+module github.com/iilun/f5-mock
 
 go 1.25.1
 

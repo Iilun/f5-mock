@@ -1,9 +1,9 @@
 package cache
 
 import (
-	"F5Mock/pkg/models"
 	"context"
 	"github.com/allegro/bigcache/v3"
+	"github.com/iilun/f5-mock/pkg/models"
 	"sync"
 	"time"
 )

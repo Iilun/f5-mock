@@ -1,10 +1,10 @@
 package main
 
 import (
-	"F5Mock/internal/handlers"
-	"F5Mock/pkg/cache"
 	"encoding/json"
 	"fmt"
+	"github.com/iilun/f5-mock/internal/handlers"
+	"github.com/iilun/f5-mock/pkg/cache"
 	"log"
 	"net/http"
 	"os"

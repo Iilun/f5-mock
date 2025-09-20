@@ -1,0 +1,24 @@
+version: 2
+project_name: f5-mock
+release:
+  github:
+    owner: iilun
+    name: f5-mock
+
+builds:
+  - id: f5-mock-binary
+    binary: f5-mock
+    main: .
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+
+dockers_v2:
+  - images:
+    - "ghcr.io/iilun/f5-mock"
+    tags:
+      - "{{ .Version }}"

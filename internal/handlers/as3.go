@@ -1,9 +1,9 @@
 package handlers
 
 import (
-	"F5Mock/pkg/cache"
-	"F5Mock/pkg/models"
 	"encoding/json"
+	"github.com/iilun/f5-mock/pkg/cache"
+	"github.com/iilun/f5-mock/pkg/models"
 	"net/http"
 	"path/filepath"
 )
