@@ -26,7 +26,7 @@ jobs:
 
       - name: Run Go tests
         run: |
-          mkdir reports
+          mkdir -p reports
           go test -v -json 2>&1 ./... > reports/test.results
 
       - name: Generate reports
