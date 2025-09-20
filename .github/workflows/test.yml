@@ -30,6 +30,9 @@ jobs:
       - name: Run Go tests
         run: go test -v -json 2>&1 ./... > reports/test.results
 
+      - name: Run Go tests
+        run: go test -v -json ./...
+
       - name: Generate reports
         if: always()
         run: |
