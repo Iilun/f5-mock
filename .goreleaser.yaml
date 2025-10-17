@@ -1,6 +1,9 @@
 version: 2
 project_name: f5-mock
 
+release:
+  disable: true
+
 builds:
   - id: f5-mock-binary
     binary: f5-mock
