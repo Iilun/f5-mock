@@ -27,6 +27,7 @@ func main() {
 	handlers.RegisterHandler(handlers.CryptoCertHandler{}, logger)
 	handlers.RegisterHandler(handlers.CryptoKeyHandler{}, logger)
 	handlers.RegisterHandler(handlers.SSLCertHandler{}, logger)
+	handlers.RegisterHandler(handlers.CipherGroupHandler{}, logger)
 
 	certFilePath := os.Getenv("F5_CERT_PATH")
 	if certFilePath == "" {

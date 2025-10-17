@@ -9,6 +9,7 @@ import (
 
 type SeedData struct {
 	ClientSSLProfiles []*models.ClientSSLProfile `yaml:"client_ssl_profiles"`
+	CipherGroups      []string                   `yaml:"cipher_groups"`
 }
 
 func loadSeedData(path string) (SeedData, error) {

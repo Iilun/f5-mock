@@ -11,6 +11,7 @@ import (
 type MemoryCaches struct {
 	AuthTokens        *bigcache.BigCache
 	ClientSSLProfiles []*models.ClientSSLProfile
+	CipherGroups      []string
 	Fs                *MemoryFS
 }
 
@@ -41,6 +42,7 @@ func New(seedDatapath string) (*MemoryCaches, error) {
 			AuthTokens:        authCache,
 			Fs:                NewFS(),
 			ClientSSLProfiles: seedData.ClientSSLProfiles,
+			CipherGroups:      seedData.CipherGroups,
 		}
 	})
 	return GlobalCache, err

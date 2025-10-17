@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/iilun/f5-mock/internal/crypto"
 	"github.com/iilun/f5-mock/internal/log"
 	"github.com/iilun/f5-mock/pkg/cache"
@@ -12,6 +13,7 @@ import (
 	"io"
 	"net/http"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -86,21 +88,15 @@ func (h ClientSSLListHandler) Handler() http.HandlerFunc {
 				return
 			}
 
-			err = f5Validator.Validate.Struct(newProfile)
-			if err != nil {
-				f5Error(w, r, http.StatusBadRequest, "invalid request")
-				return
-			}
-
 			version, ok := r.Context().Value(log.ContextVersion).(int)
 			if !ok {
 				f5Error(w, r, http.StatusInternalServerError, "invalid version")
 				return
 			}
 
-			err = validateCert(newProfile.Cert, version)
+			err = validateProfileConfig(newProfile, version)
 			if err != nil {
-				f5Error(w, r, http.StatusBadRequest, "invalid cert: %s", err.Error())
+				f5Error(w, r, http.StatusBadRequest, err.Error())
 				return
 			}
 
@@ -194,6 +190,11 @@ func (h ClientSSLHandler) Handler() http.HandlerFunc {
 				return
 			}
 
+			// Specific case for cipher
+			if v, found := asMap["ciphers"]; found && v == "" {
+				asMap["ciphers"] = "none"
+			}
+
 			respBytes, err := json.Marshal(asMap)
 			if err != nil {
 				f5Error(w, r, http.StatusInternalServerError, "could not marshal")
@@ -218,7 +219,7 @@ func (h ClientSSLHandler) Handler() http.HandlerFunc {
 				return
 			}
 
-			var patchRequest PatchClientSSLProfile
+			var patchRequest map[string]any
 
 			err = json.Unmarshal(bodyBytes, &patchRequest)
 			if err != nil {
@@ -226,31 +227,42 @@ func (h ClientSSLHandler) Handler() http.HandlerFunc {
 				return
 			}
 
-			if err = f5Validator.Validate.Struct(patchRequest); err != nil {
-				f5Error(w, r, http.StatusBadRequest, "invalid request: %v", err)
+			previousMap, err := profileToMap(*foundProfile)
+			if err != nil {
+				f5Error(w, r, http.StatusInternalServerError, "could not serialize internal profile: %v", err)
 				return
 			}
 
-			version, ok := r.Context().Value(log.ContextVersion).(int)
-			if !ok {
-				f5Error(w, r, http.StatusInternalServerError, "invalid version")
+			for key := range previousMap {
+				if value, ok := patchRequest[key]; ok {
+					previousMap[key] = value
+					delete(patchRequest, key)
+				}
+			}
+
+			for k, v := range patchRequest {
+				previousMap[k] = v
+			}
+
+			patchedProfile, err := mapToProfile(previousMap)
+			if err != nil {
+				f5Error(w, r, http.StatusInternalServerError, "could not serialize patched profile: %v", err)
 				return
 			}
 
-			if err = validateCert(patchRequest.Cert, version); err != nil {
-				f5Error(w, r, http.StatusBadRequest, "invalid cert: %s", err.Error())
-				return
+			var patchedProfiles []*models.ClientSSLProfile
+
+			for _, pf := range cache.GlobalCache.ClientSSLProfiles {
+				if pf.Name == patchedProfile.Name {
+					patchedProfiles = append(patchedProfiles, patchedProfile)
+				} else {
+					patchedProfiles = append(patchedProfiles, pf)
+				}
 			}
 
-			if patchRequest.Cert != "" {
-				foundProfile.Cert = patchRequest.Cert
-			}
+			cache.GlobalCache.ClientSSLProfiles = patchedProfiles
 
-			if patchRequest.Key != "" {
-				foundProfile.Key = patchRequest.Key
-			}
-
-			respBytes, err := json.Marshal(*foundProfile)
+			respBytes, err := json.Marshal(*patchedProfile)
 			if err != nil {
 				f5Error(w, r, http.StatusInternalServerError, "could not marshal response")
 				return
@@ -305,4 +317,66 @@ func validateCert(path string, version int) error {
 	}
 
 	return nil
+}
+
+func validateCipherConfig(profile models.ClientSSLProfile) error {
+
+	if profile.CipherGroup != "" && !slices.Contains(cache.GlobalCache.CipherGroups, profile.CipherGroup) {
+		return fmt.Errorf("CypherGroup: '%s' is not available", profile.CipherGroup)
+	}
+
+	if profile.CipherGroup != "" && profile.Ciphers != "" {
+		return fmt.Errorf("Profile %s/%s cannot contain both ciphers and a cipher-group.", profile.Partition, profile.Name)
+	}
+
+	return nil
+}
+
+func validateProfileConfig(profile models.ClientSSLProfile, version int) error {
+	err := f5Validator.Validate.Struct(profile)
+	if err != nil {
+		return errors.New("invalid request")
+	}
+
+	err = validateCipherConfig(profile)
+	if err != nil {
+		return err
+	}
+
+	err = validateCert(profile.Cert, version)
+	if err != nil {
+		return fmt.Errorf("invalid cert: %v", err)
+	}
+
+	return nil
+}
+
+func profileToMap(profile models.ClientSSLProfile) (map[string]any, error) {
+	var asMap map[string]any
+
+	bytes, err := json.Marshal(profile)
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(bytes, &asMap)
+	if err != nil {
+		return nil, err
+	}
+	return asMap, nil
+}
+
+func mapToProfile(asMap map[string]any) (*models.ClientSSLProfile, error) {
+	var profile models.ClientSSLProfile
+
+	bytes, err := json.Marshal(asMap)
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(bytes, &profile)
+	if err != nil {
+		return nil, err
+	}
+	return &profile, nil
 }

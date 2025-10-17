@@ -3,7 +3,6 @@ package f5Validator
 import (
 	"github.com/go-playground/validator/v10"
 	"github.com/iilun/f5-mock/pkg/cache"
-
 	"path/filepath"
 	"reflect"
 	"sync"

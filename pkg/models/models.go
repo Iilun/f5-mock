@@ -12,4 +12,12 @@ type ClientSSLProfile struct {
 	Cert         string         `json:"cert" yaml:"cert"`
 	Key          string         `json:"key" yaml:"key"`
 	CertKeyChain []ChainElement `json:"certKeyChain" yaml:"cert_key_chain"`
+	CipherGroup  string         `json:"cipherGroup" yaml:"cipher_group"`
+	Ciphers      string         `json:"ciphers" yaml:"ciphers"`
+	DefaultsFrom string         `json:"defaultsFrom" yaml:"defaults_from"`
+}
+
+type CipherGroup struct {
+	Kind string `json:"kind"`
+	Name string `json:"name"`
 }
