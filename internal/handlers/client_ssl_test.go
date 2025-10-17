@@ -19,6 +19,7 @@ func TestClientSSLHandler(t *testing.T) {
 		method        string
 		path          string
 		profiles      []*models.ClientSSLProfile
+		cipherGroups  []string
 		existingFiles []string
 		body          any
 		headers       map[string]string
@@ -80,13 +81,54 @@ func TestClientSSLHandler(t *testing.T) {
 			method: http.MethodPatch,
 			path:   "~Common~prof1",
 			profiles: []*models.ClientSSLProfile{
-				{Name: "prof1", Partition: "Common"},
+				{Name: "prof1", Partition: "Common", Cert: "/certs/cert.pem"},
 			},
 			headers:       map[string]string{"Content-Type": "application/json"},
 			body:          map[string]string{"cert": "bad-cert", "key": "k1.key"},
 			wantStatus:    http.StatusBadRequest,
-			wantBody:      "Field validation for 'Cert' failed on the 'existingcertfile' tag",
+			wantBody:      "invalid cert: file does not exist",
 			existingFiles: []string{"/keys/k1.key"},
+		},
+		{
+			name:   "PATCH change cipher group",
+			method: http.MethodPatch,
+			path:   "~Common~prof1",
+			profiles: []*models.ClientSSLProfile{
+				{Name: "prof1", Partition: "Common", Ciphers: "", CipherGroup: "a", Cert: "cert.pem"},
+			},
+			headers:       map[string]string{"Content-Type": "application/json"},
+			body:          map[string]string{"cipherGroup": "new-cipher"},
+			wantStatus:    http.StatusOK,
+			wantBody:      "\"cipherGroup\":\"new-cipher\"",
+			cipherGroups:  []string{"new-cipher"},
+			existingFiles: []string{"/certs/cert.pem", "/keys/k1.key"},
+		},
+		{
+			name:   "PATCH change ciphers",
+			method: http.MethodPatch,
+			path:   "~Common~prof1",
+			profiles: []*models.ClientSSLProfile{
+				{Name: "prof1", Partition: "Common", Ciphers: "", CipherGroup: "a", Cert: "cert.pem"},
+			},
+			headers:       map[string]string{"Content-Type": "application/json"},
+			body:          map[string]any{"ciphers": "some-cipher", "cipherGroup": nil},
+			wantStatus:    http.StatusOK,
+			wantBody:      "\"ciphers\":\"some-cipher\"",
+			existingFiles: []string{"/certs/cert.pem", "/keys/k1.key"},
+		},
+		{
+			name:   "PATCH change ciphers and cipher group",
+			method: http.MethodPatch,
+			path:   "~Common~prof1",
+			profiles: []*models.ClientSSLProfile{
+				{Name: "prof1", Partition: "Common", Ciphers: "", CipherGroup: "a", Cert: "cert.pem"},
+			},
+			headers:       map[string]string{"Content-Type": "application/json"},
+			body:          map[string]string{"cipherGroup": "new-cipher", "ciphers": "some-cipher"},
+			wantStatus:    http.StatusBadRequest,
+			wantBody:      "Profile Common/prof1 cannot contain both ciphers and a cipher-group.",
+			existingFiles: []string{"/certs/cert.pem", "/keys/k1.key"},
+			cipherGroups:  []string{"new-cipher"},
 		},
 		{
 			name:   "PATCH success",
@@ -132,9 +174,10 @@ func TestClientSSLHandler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cache.GlobalCache.ClientSSLProfiles = tt.profiles
+			cache.GlobalCache.CipherGroups = tt.cipherGroups
 
 			for _, f := range tt.existingFiles {
-				_, _ = cache.GlobalCache.Fs.WriteFile(f, nil)
+				_, _ = cache.GlobalCache.Fs.WriteFile(f, []byte("some content"))
 			}
 
 			h := F5HandlerWrapper{ClientSSLHandler{}, logger}
@@ -144,6 +187,8 @@ func TestClientSSLHandler(t *testing.T) {
 			case string:
 				reqBody.WriteString(v)
 			case map[string]string:
+				_ = json.NewEncoder(reqBody).Encode(v)
+			case map[string]any:
 				_ = json.NewEncoder(reqBody).Encode(v)
 			}
 

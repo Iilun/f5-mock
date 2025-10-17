@@ -20,7 +20,7 @@ func (h CipherGroupHandler) Handler() http.HandlerFunc {
 			// Partition is ignored for groups
 			_, group, err := parsePath(r.PathValue("group"))
 			if err != nil {
-				f5Error(w, r, http.StatusBadRequest, err.Error())
+				f5Error(w, r, http.StatusBadRequest, "%v", err.Error())
 				return
 			}
 

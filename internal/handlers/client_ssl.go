@@ -96,7 +96,7 @@ func (h ClientSSLListHandler) Handler() http.HandlerFunc {
 
 			err = validateProfileConfig(newProfile, version)
 			if err != nil {
-				f5Error(w, r, http.StatusBadRequest, err.Error())
+				f5Error(w, r, http.StatusBadRequest, "%v", err.Error())
 				return
 			}
 
@@ -250,6 +250,18 @@ func (h ClientSSLHandler) Handler() http.HandlerFunc {
 				return
 			}
 
+			version, ok := r.Context().Value(log.ContextVersion).(int)
+			if !ok {
+				f5Error(w, r, http.StatusInternalServerError, "invalid version")
+				return
+			}
+
+			err = validateProfileConfig(*patchedProfile, version)
+			if err != nil {
+				f5Error(w, r, http.StatusBadRequest, "%v", err.Error())
+				return
+			}
+
 			var patchedProfiles []*models.ClientSSLProfile
 
 			for _, pf := range cache.GlobalCache.ClientSSLProfiles {
@@ -297,16 +309,27 @@ func findProfile(partition, name string) *models.ClientSSLProfile {
 	return nil
 }
 
-func validateCert(path string, version int) error {
-	if version >= 17 {
-		return nil
+func validateCert(profile models.ClientSSLProfile, version int) error {
+	certPath := profile.Cert
+	if certPath == "" {
+		for _, elem := range profile.CertKeyChain {
+			certPath = elem.Cert
+		}
 	}
-	// Check ECDSA certs not supported
-	certBytes, err := cache.GlobalCache.Fs.ReadFile(filepath.Join("/certs", path))
+
+	if certPath == "" {
+		return errors.New("no path defined")
+	}
+
+	certBytes, err := cache.GlobalCache.Fs.ReadFile(filepath.Join("/certs", certPath))
 	if err != nil {
 		return err
 	}
 
+	if version >= 17 {
+		return nil
+	}
+	// Check ECDSA certs not supported
 	cert, err := crypto.ParsePemCertificate(certBytes)
 	if err != nil {
 		return err
@@ -343,7 +366,7 @@ func validateProfileConfig(profile models.ClientSSLProfile, version int) error {
 		return err
 	}
 
-	err = validateCert(profile.Cert, version)
+	err = validateCert(profile, version)
 	if err != nil {
 		return fmt.Errorf("invalid cert: %v", err)
 	}
