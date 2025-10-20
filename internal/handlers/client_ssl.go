@@ -88,7 +88,7 @@ func (h ClientSSLListHandler) Handler() http.HandlerFunc {
 				return
 			}
 
-			version, ok := r.Context().Value(log.ContextVersion).(int)
+			version, ok := r.Context().Value(log.ContextMajorVersion).(int)
 			if !ok {
 				f5Error(w, r, http.StatusInternalServerError, "invalid version")
 				return
@@ -190,9 +190,19 @@ func (h ClientSSLHandler) Handler() http.HandlerFunc {
 				return
 			}
 
-			// Specific case for cipher
+			// Specific get cases
 			if v, found := asMap["ciphers"]; found && v == "" {
 				asMap["ciphers"] = "none"
+			}
+
+			version, ok := r.Context().Value(log.ContextVersion).(string)
+			if !ok {
+				f5Error(w, r, http.StatusInternalServerError, "invalid version")
+				return
+			}
+
+			if v, found := asMap["selfLink"]; found && v == "" {
+				asMap["selfLink"] = filepath.Join("https://localhost/mgmt/tm/ltm/profile/client-ssl", fmt.Sprintf("~%s~%s?ver=%s", foundProfile.Partition, foundProfile.Name, version))
 			}
 
 			respBytes, err := json.Marshal(asMap)
@@ -250,7 +260,7 @@ func (h ClientSSLHandler) Handler() http.HandlerFunc {
 				return
 			}
 
-			version, ok := r.Context().Value(log.ContextVersion).(int)
+			version, ok := r.Context().Value(log.ContextMajorVersion).(int)
 			if !ok {
 				f5Error(w, r, http.StatusInternalServerError, "invalid version")
 				return
@@ -291,12 +301,6 @@ func (h ClientSSLHandler) Handler() http.HandlerFunc {
 			return
 		}
 	})
-}
-
-type PatchClientSSLProfile struct {
-	DefaultsFrom string `json:"defaultsFrom"`
-	Cert         string `json:"cert" validate:"existingcertfile"`
-	Key          string `json:"key" validate:"existingkeyfile"`
 }
 
 func findProfile(partition, name string) *models.ClientSSLProfile {

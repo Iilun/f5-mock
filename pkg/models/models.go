@@ -15,6 +15,7 @@ type ClientSSLProfile struct {
 	CipherGroup  string         `json:"cipherGroup" yaml:"cipher_group"`
 	Ciphers      string         `json:"ciphers" yaml:"ciphers"`
 	DefaultsFrom string         `json:"defaultsFrom" yaml:"defaults_from"`
+	SelfLink     string         `json:"selfLink"`
 }
 
 type CipherGroup struct {

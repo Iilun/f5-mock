@@ -70,8 +70,9 @@ func applyVersionMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), log.ContextVersion, majorInt)
+		ctx := context.WithValue(r.Context(), log.ContextMajorVersion, majorInt)
+		finalCtx := context.WithValue(ctx, log.ContextVersion, version)
 
-		next(w, r.WithContext(ctx))
+		next(w, r.WithContext(finalCtx))
 	}
 }

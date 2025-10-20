@@ -43,6 +43,7 @@ func TestClientSSLHandler(t *testing.T) {
 			wantStatus: http.StatusNotFound,
 			wantBody:   "could not find profile",
 		},
+		// TODO: add filtering tests
 		{
 			name:   "GET success",
 			method: http.MethodGet,
@@ -51,7 +52,7 @@ func TestClientSSLHandler(t *testing.T) {
 				{Name: "prof1", Partition: "Common", Cert: "c1.crt", Key: "k1.key"},
 			},
 			wantStatus: http.StatusOK,
-			wantBody:   `"cert":"c1.crt"`,
+			wantBody:   `{"cert":"c1.crt","certKeyChain":null,"cipherGroup":"","ciphers":"none","defaultsFrom":"","key":"k1.key","kind":"tm:ltm:profile:client-ssl:client-sslstate","name":"prof1","partition":"Common","selfLink":"https:/localhost/mgmt/tm/ltm/profile/client-ssl/~Common~prof1?ver=17.0.0.0"}`,
 		},
 		{
 			name:   "PATCH wrong content type",

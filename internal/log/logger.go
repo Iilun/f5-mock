@@ -7,8 +7,9 @@ import (
 )
 
 const (
-	ContextVersion   = "f5_version"
-	ContextRequestId = "request_id"
+	ContextMajorVersion = "f5_major_version"
+	ContextVersion      = "f5_version"
+	ContextRequestId    = "request_id"
 )
 
 type Logger interface {

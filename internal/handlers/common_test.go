@@ -167,7 +167,7 @@ func TestApplyVersionMiddleware(t *testing.T) {
 			}
 
 			middleware := applyVersionMiddleware(func(w http.ResponseWriter, r *http.Request) {
-				version, ok := r.Context().Value(log.ContextVersion).(int)
+				version, ok := r.Context().Value(log.ContextMajorVersion).(int)
 				if !ok {
 					f5Error(w, r, http.StatusInternalServerError, "invalid version in context")
 					return
