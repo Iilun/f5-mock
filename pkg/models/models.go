@@ -1,9 +1,10 @@
 package models
 
 type ChainElement struct {
-	Cert string `json:"cert" yaml:"cert" validate:"required"`
-	Name string `json:"name" yaml:"name"`
-	Key  string `json:"key" yaml:"key"`
+	Cert  string `json:"cert" yaml:"cert" validate:"required"`
+	Name  string `json:"name" yaml:"name"`
+	Key   string `json:"key" yaml:"key"`
+	Chain string `json:"chain,omitempty" yaml:"chain,omitempty"`
 }
 
 type ClientSSLProfile struct {

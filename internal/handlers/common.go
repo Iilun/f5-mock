@@ -3,8 +3,11 @@ package handlers
 import (
 	"context"
 	"fmt"
+
 	"github.com/iilun/f5-mock/internal/log"
 	"github.com/iilun/f5-mock/pkg/cache"
+	"github.com/iilun/f5-mock/pkg/models"
+
 	"net/http"
 	"os"
 	"strconv"
@@ -75,4 +78,14 @@ func applyVersionMiddleware(next http.HandlerFunc) http.HandlerFunc {
 
 		next(w, r.WithContext(finalCtx))
 	}
+}
+
+func findProfile(partition, name string) *models.ClientSSLProfile {
+	for i := range cache.GlobalCache.ClientSSLProfiles {
+		profile := cache.GlobalCache.ClientSSLProfiles[i]
+		if profile.Partition == partition && profile.Name == name {
+			return profile
+		}
+	}
+	return nil
 }
