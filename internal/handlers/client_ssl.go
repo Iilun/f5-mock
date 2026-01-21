@@ -5,16 +5,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/iilun/f5-mock/internal/crypto"
-	"github.com/iilun/f5-mock/internal/log"
-	"github.com/iilun/f5-mock/pkg/cache"
-	"github.com/iilun/f5-mock/pkg/f5Validator"
-	"github.com/iilun/f5-mock/pkg/models"
 	"io"
 	"net/http"
 	"path/filepath"
 	"slices"
 	"strings"
+
+	"github.com/iilun/f5-mock/internal/crypto"
+	"github.com/iilun/f5-mock/internal/log"
+	"github.com/iilun/f5-mock/pkg/cache"
+	"github.com/iilun/f5-mock/pkg/f5Validator"
+	"github.com/iilun/f5-mock/pkg/models"
 )
 
 type ClientSSLListHandler struct{}
@@ -301,16 +302,6 @@ func (h ClientSSLHandler) Handler() http.HandlerFunc {
 			return
 		}
 	})
-}
-
-func findProfile(partition, name string) *models.ClientSSLProfile {
-	for i := range cache.GlobalCache.ClientSSLProfiles {
-		profile := cache.GlobalCache.ClientSSLProfiles[i]
-		if profile.Partition == partition && profile.Name == name {
-			return profile
-		}
-	}
-	return nil
 }
 
 func validateCert(profile models.ClientSSLProfile, version int) error {

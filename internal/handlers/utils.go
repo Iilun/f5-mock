@@ -28,3 +28,13 @@ func parsePath(path string) (string, string, error) {
 
 	return splitProfile[1], splitProfile[2], nil
 }
+
+func parseAS3Path(path string) (string, string, error) {
+	splitProfile := strings.Split(strings.Trim(path, "/"), "/")
+
+	if len(splitProfile) < 2 {
+		return "", "", errors.New("invalid path")
+	}
+
+	return splitProfile[0], splitProfile[1], nil
+}
